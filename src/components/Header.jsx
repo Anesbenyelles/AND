@@ -1,76 +1,53 @@
-import { useState, useEffect } from 'react';
-import logo from '../assets/designItems/Logo bachir fond blanc.svg'
-import logoSurVert from '../assets/designItems/Logo bachir fond vert.svg'
-import greebArrow from '../assets/designItems/Triangle vert.svg'
-import { NavLink } from 'react-router-dom';
+import React from 'react';
+import { Moon, Sun, HelpCircle, Settings, RefreshCw } from 'react-feather';
 
-function Header() {
-  const [scrolled, setScrolled] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 50) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+const Header = ({ toggleDarkMode, darkMode, classifier, setClassifier, currentStep }) => {
+  const steps = ['upload', 'visualize', 'impute', 'results'];
+  const currentStepIndex = steps.indexOf(currentStep) + 1;
 
   return (
-    <header className={`sticky top-0 mx-auto z-30 flex justify-between items-center transition-all duration-300 bg-white px-10 ${scrolled  ? 'w-full' : 'sm:w-[80%] w-full'}`}>
-      <img src={greebArrow} className='absolute top-0 right-0 z-40  scale-x-[-1] h-full invisible sm:visible' />
-      <div className="flex items-center flex-1 w-1/2 gap-2 logo sm:flex-auto ">
-        <img src={logo} alt="OWB Logo" className="w-auto m-5 max-h-16" />
-        <h1 className="text-[calc(5px+2vw)] great-vibes-regular tracking-wider text-[#00aba7] w-1/2">El Bachir <span className="text-[#cfb173]">Promo</span> </h1>
+    <header className="bg-white dark:bg-gray-800 shadow-md py-4 px-6 flex items-center justify-between">
+      <div className="flex items-center space-x-4">
+        <select
+          value={classifier}
+          onChange={(e) => setClassifier(e.target.value)}
+          className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded px-2 py-1"
+        >
+          <option value="MLP">MLP</option>
+          <option value="KNN">KNN</option>
+        </select>
+        <span className="text-gray-600 dark:text-gray-400">
+          Étape {currentStepIndex}/4
+        </span>
       </div>
-
-      <nav className={`justify-center flex-grow hidden ${scrolled ? 'gap-14':'gap-5'} sm:flex  transition-all `}>
-        <NavLink to={'home'} className={({isActive}) => (` text-[calc(2px+1vw)] font-bold hover:text-[#00aba7] no-underline  transition-colors duration-300 ${isActive && 'text-[#00aba7]'}`)}>Acceuil</NavLink>
-        <NavLink to={'apropos'} className={({isActive}) => (` text-[calc(2px+1vw)] font-bold hover:text-[#00aba7] no-underline  transition-colors duration-300 ${isActive && 'text-[#00aba7]'}`)}>À propos</NavLink>
-        <NavLink to={'appart'} className={({isActive}) => (` text-[calc(2px+1vw)] font-bold hover:text-[#00aba7] no-underline  transition-colors duration-300 ${isActive && 'text-[#00aba7]'}`)}>Appartements</NavLink>
-        <NavLink to={'media'} className={({isActive}) => (` text-[calc(2px+1vw)] font-bold hover:text-[#00aba7] no-underline  transition-colors duration-300 ${isActive && 'text-[#00aba7]'}`)}>Media</NavLink>
-        <NavLink to={'contact'} className={({isActive}) => (` text-[calc(2px+1vw)] font-bold hover:text-[#00aba7] no-underline  transition-colors duration-300 ${isActive && 'text-[#00aba7]'}`)}>Contacter-Nous</NavLink>
-      </nav>
-
-      <button
-        className={`sm:hidden p-2 font-bold text-4xl text-[#ceb173] ${isMenuOpen ? "invisible" : "visible"} z-50`}
-        aria-expanded={isMenuOpen}
-        aria-controls="mobile-menu"
-        onClick={() => setIsMenuOpen(!isMenuOpen)}
-      >
-        ☰
-      </button>
-
-      <div
-        id="mobile-menu"
-        className={`fixed top-0 p-4 left-0 w-full  md:w-full h-fit bg-[#00aba7] text-white transition-transform transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:hidden`}
-      >
-        <div className='flex items-center justify-between mb-4'>
-          <img src={logoSurVert} alt="OWB Logo" className="flex-1 w-auto h-20" />
-
-          <button
-            className="text-xl text-white"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            ✕
-          </button>
-        </div>
-        <nav className="flex flex-col items-start px-4">
-          <NavLink to={'home'} className={({isActive}) => (` py-2 text-lg   no-underline font-bold hover:text-black ${isActive ? 'text-[#cfb173]' : 'text-white'}`)} onClick={() => setIsMenuOpen(false)}>Acceuil</NavLink>
-          <NavLink to={'apropos'} className={({isActive}) => (` py-2 text-lg   no-underline font-bold hover:text-black ${isActive ? 'text-[#cfb173]' : 'text-white'}`)} onClick={() => setIsMenuOpen(false)}>À propos</NavLink>
-          <NavLink to={'appart'} className={({isActive}) => (` py-2 text-lg   no-underline font-bold hover:text-black ${isActive ? 'text-[#cfb173]' : 'text-white'}`)} onClick={() => setIsMenuOpen(false)}>Appartements</NavLink>
-          <NavLink to={'media'} className={({isActive}) => (` py-2 text-lg   no-underline font-bold hover:text-black ${isActive ? 'text-[#cfb173]' : 'text-white'}`)} onClick={() => setIsMenuOpen(false)}>Media</NavLink>
-          <NavLink to={'contact'} className={({isActive}) => (` py-2 text-lg   no-underline font-bold hover:text-black ${isActive ? 'text-[#cfb173]' : 'text-white'}`)} onClick={() => setIsMenuOpen(false)}>Contacter-Nous</NavLink>
-        </nav>
+      <div className="flex items-center space-x-4">
+        <button
+          className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+          title="Aide"
+        >
+          <HelpCircle />
+        </button>
+        <button
+          className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+          title="Paramètres"
+        >
+          <Settings />
+        </button>
+        <button
+          className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+          title="Réinitialiser"
+        >
+          <RefreshCw />
+        </button>
+        <button
+          onClick={toggleDarkMode}
+          className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+        >
+          {darkMode ? <Sun /> : <Moon />}
+        </button>
       </div>
     </header>
   );
-}
+};
 
 export default Header;
