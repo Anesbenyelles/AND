@@ -28,7 +28,7 @@ const Header = ({ toggleDarkMode, darkMode, classifier, setClassifier, currentSt
           <HelpCircle />
         </button>
         <button
-          className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+          className="text-white dark:text-wh hover:text-gray-800 dark:hover:text-gray-200"
           title="Paramètres"
         >
           <Settings />

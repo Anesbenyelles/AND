@@ -5,17 +5,25 @@ import UploadData from './components/UploadData';
 import VisualizeData from './components/VisualizeData';
 import ImputeData from './components/ImputeData';
 import Results from './components/Results';
-
+import { useEffect } from 'react';
 function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [currentStep, setCurrentStep] = useState('upload');
   const [classifier, setClassifier] = useState('MLP');
   const [data, setData] = useState(null);
+  useEffect(() => {
+    console.log('Dark Mode:', darkMode);
+    if (darkMode) {
+      console.log("if")
+      document.documentElement.classList.add('dark');
+    } else {
+      console.log("else")
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);;
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
-
+  const toggleDarkMode = () => setDarkMode(!darkMode);
+  
   const renderStep = () => {
     switch (currentStep) {
       case 'upload':
@@ -32,9 +40,12 @@ function App() {
   };
 
   return (
-    <div className={`flex h-screen ${darkMode ? 'dark' : ''}`}>
-      <Sidebar currentStep={currentStep} setCurrentStep={setCurrentStep} />
+    <div className={`flex h-screen w-screen  ${darkMode ? 'dark' : ''}`}>
+
+      <div>
+      <Sidebar currentStep={currentStep} setCurrentStep={setCurrentStep} /></div>
       <div className="flex flex-col flex-1 overflow-hidden">
+
         <Header
           toggleDarkMode={toggleDarkMode}
           darkMode={darkMode}
