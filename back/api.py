@@ -1,16 +1,21 @@
-from flask import Flask, request, jsonify
-import os
 import pandas as pd
-from sklearn.neighbors import KNeighborsClassifier
-from mealpy.math_based.SCA import OriginalSCA
 import numpy as np
-
+from sklearn.impute import KNNImputer
+from sklearn.preprocessing import StandardScaler
+import io
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from sklearn.neighbors import KNeighborsClassifier
+from mealpy import SCA, PSO, GA, GWO, WOA
+from mealpy.utils.space import FloatVar
+from flask import Flask, request, jsonify
 app = Flask(__name__)
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
+@app.route("/optimazation-methods-using-knn-classifier", methods=['POST'])
+def optimazation_methods_using_knn_classifier():
+    # Check if a file is uploaded
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
 
@@ -19,87 +24,91 @@ def upload_file():
         return jsonify({"error": "No selected file"}), 400
 
     if not file.filename.endswith('.csv'):
-        return jsonify({"error": "Only CSV files are allowed"}), 400
+        return jsonify({"error": "Only .csv files are supported"}), 400
 
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(file_path)
+    # Read the uploaded file into a DataFrame
+    data = pd.read_csv(io.BytesIO(file.read()))
 
-    # Check for missing values
-    data = pd.read_csv(file_path)
-    if data.isnull().any().any():
-        return jsonify({"missing": True, "file_path": file_path, "file_name": file.filename}), 200
+    # Dividing the data
+    df_with_nulls = data[data.isnull().any(axis=1)]
+    df_without_nulls = data[data.notnull().all(axis=1)]
+    
+    # Separating features (X) and labels (y)
+    X = df_without_nulls.drop(columns=["Potability"])
+    y = df_without_nulls["Potability"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-    return jsonify({"missing": False, "file_path": file_path, "file_name": file.filename}), 200
+    # Initializing the classifier
+    knn = KNeighborsClassifier(n_neighbors=5)
+    knn.fit(X_train, y_train)
 
-@app.route('/imputate', methods=['POST'])
-def imputate_data():
-    request_data = request.json
-    file_path = request_data.get('file_path')
-    file_name = request_data.get('file_name')
-    classifier_type = request_data.get('classifier')
-
-    if not file_path or not file_name or not classifier_type:
-        return jsonify({"error": "Missing parameters"}), 400
-
-    # Load the data
-    data = pd.read_csv(file_path)
-
-    # Separate features and target
-    X = data.iloc[:, :-1].values
-    y = data.iloc[:, -1].values if data.shape[1] > 1 else None
-
-    # Replace missing values with NaN
-    X = np.array([[np.nan if pd.isnull(val) else val for val in row] for row in X])
-
-    # Define fitness function
-    def fitness_function(solution):
-        imputed_X = X.copy()
-        for i in range(X.shape[0]):
-            for j in range(X.shape[1]):
-                if np.isnan(X[i, j]):
-                    imputed_X[i, j] = solution[j]
-
-        if classifier_type == "knn":
-            clf = KNeighborsClassifier(n_neighbors=5)
-            clf.fit(imputed_X, y)
-            accuracy = clf.score(imputed_X, y)
-            return -accuracy
-
-        return float("inf")  # Placeholder for unsupported classifiers
-
-    # Run SCA optimization
-    problem = {
-        "fit_func": fitness_function,
-        "lb": [np.nanmin(X[:, j]) if not np.isnan(X[:, j]).all() else 0 for j in range(X.shape[1])],
-        "ub": [np.nanmax(X[:, j]) if not np.isnan(X[:, j]).all() else 1 for j in range(X.shape[1])],
-        "minmax": "min",
-        "log_to": None
+    # Evaluating performances before optimization
+    y_pred_initial = knn.predict(X_test)
+    initial_results = {
+        "accuracy": accuracy_score(y_test, y_pred_initial),
+        "recall": recall_score(y_test, y_pred_initial, average="macro", zero_division=0),
+        "precision": precision_score(y_test, y_pred_initial, average="macro", zero_division=0),
+        "f1_score": f1_score(y_test, y_pred_initial, average="macro", zero_division=0)
     }
 
-    model = OriginalSCA(problem, epoch=100, pop_size=30)
-    best_solution, best_fitness = model.solve()
+    # Filling missing values function
+    def fill_missing_values(solution):
+        df_filled = df_with_nulls.copy()
+        for i, col in enumerate(df_with_nulls.columns[:-1]):
+            df_filled[col] = df_filled[col].fillna(solution[i])
+        return df_filled
 
-    # Apply best solution
-    for i in range(X.shape[0]):
-        for j in range(X.shape[1]):
-            if np.isnan(X[i, j]):
-                X[i, j] = best_solution[j]
+    # Fitness function
+    def fitness_function(solution, model):
+        df_filled = fill_missing_values(solution)
+        X_combined = pd.concat([X_test, df_filled.iloc[:, :-1]])
+        y_combined = pd.concat([y_test, df_filled.iloc[:, -1]])
+        y_pred_combined = model.predict(X_combined)
+        return accuracy_score(y_combined, y_pred_combined)
 
-    # Save the imputed dataset
-    imputed_data = pd.DataFrame(X, columns=data.columns[:-1])
-    if y is not None:
-        imputed_data[data.columns[-1]] = y
+    # Bounds for optimization
+    lb = [min(df_without_nulls[col].min(), df_without_nulls[col].max()) for col in df_with_nulls.columns[:-1]]
+    ub = [max(df_without_nulls[col].min(), df_without_nulls[col].max()) for col in df_with_nulls.columns[:-1]]
+    bounds = FloatVar(lb=lb, ub=ub, name="delta")
 
-    imputed_file_path = os.path.join(UPLOAD_FOLDER, f"imputed_{file_name}")
-    imputed_data.to_csv(imputed_file_path, index=False)
+    # Optimization methods
+    optimization_methods = {
+        "SCA": SCA.OriginalSCA(epoch=1, pop_size=30),
+        "PSO": PSO.OriginalPSO(epoch=1, pop_size=30),
+        "GA": GA.BaseGA(epoch=1, pop_size=30),
+        "GWO": GWO.OriginalGWO(epoch=1, pop_size=30),
+        "WOA": WOA.OriginalWOA(epoch=1, pop_size=30)
+    }
 
+    # Storing results after optimization
+    results_after_optimization = {}
+    for method_name, optimizer in optimization_methods.items():
+        problem_dict = {
+            "bounds": bounds,
+            "minmax": "max",
+            "obj_func": lambda solution: fitness_function(solution, knn)
+        }
+        best_agent = optimizer.solve(problem_dict)
+        best_solution = best_agent.solution
+
+        df_filled_best = fill_missing_values(best_solution)
+        X_combined = pd.concat([X_test, df_filled_best.iloc[:, :-1]])
+        y_combined = pd.concat([y_test, df_filled_best.iloc[:, -1]])
+        y_pred_combined = knn.predict(X_combined)
+
+        results_after_optimization[method_name] = {
+            "accuracy": accuracy_score(y_combined, y_pred_combined),
+            "recall": recall_score(y_combined, y_pred_combined, average="macro", zero_division=0),
+            "precision": precision_score(y_combined, y_pred_combined, average="macro", zero_division=0),
+            "f1_score": f1_score(y_combined, y_pred_combined, average="macro", zero_division=0)
+        }
+
+    # Return results as JSON
     return jsonify({
-        "file_path": imputed_file_path,
-        "file_name": f"imputed_{file_name}",
-        "f1_score": None,  # Placeholder until F1 score implementation
-        "accuracy": -best_fitness,
-        "loss": best_fitness
-    }), 200
+        "Performances avant optimisation": initial_results,
+        "Performances après optimisation": results_after_optimization
+    })
+
 
 if __name__ == '__main__':
     app.run(debug=True)
