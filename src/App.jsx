@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import './index.css'
+
+
 // Simulation des icônes puisque lucide-react nécessite une configuration spéciale
 const UploadIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -27,8 +29,81 @@ const mockResults = [
   { method: "GWO", accuracy: 0.86, recall: 0.84, precision: 0.86, f1: 0.86 },
   { method: "WOA", accuracy: 0.87, recall: 0.85, precision: 0.88, f1: 0.87 }
 ];
+// const handleUpload = async (event, setResults) => {
+//   const file = event.target.files[0];
+//   if (!file) return;
 
-const FileUpload = ({ onFileSelect }) => (
+//   console.log("Fichier sélectionné:", file.name);
+//   const formData = new FormData();
+//   formData.append('file', file);
+
+//   try {
+//     console.log("Envoi du fichier...");
+//     const response = await fetch('http://localhost:5000/optimazation-methods-using-knn-classifier', {
+//       method: 'POST',
+//       body: formData,
+//     });
+  
+
+
+//     if (!response.ok) {
+//       console.log('Erreur lors de l\'envoi du fichier');
+//       console.error('Erreur lors de l\'envoi du fichier');
+//       throw new Error('Erreur lors de l\'envoi du fichier');
+//     }
+//     console.log("Données reçues:");
+//     const data = await response.json();
+//     console.log("Données reçues:", data);
+
+//     console.log("Données reçues:", data);
+
+//     if (data["Performances avant optimisation"] && data["Performances après optimisation"]) {
+//       console.log("dkhlt if");
+//       setResults({
+//         "Performances avant optimisation": data["Performances avant optimisation"],
+//         "Performances après optimisation": data["Performances après optimisation"]
+//     });
+    
+//     console.log("Results updated:", {
+        
+//     });
+//     } else {
+//       console.error('Données manquantes dans la réponse:', data);
+//     }
+
+//   } catch (error) {
+//     console.error('Erreur API:', error);
+//   }
+// };
+
+const transformResults = (data) => {
+  const { "Performances avant optimisation": initialResults, "Performances après optimisation": optimizedResults } = data;
+
+  const formattedInitialResults = [
+    {
+      method: "Initial",
+      accuracy: initialResults.accuracy,
+      recall: initialResults.recall,
+      precision: initialResults.precision,
+      f1: initialResults.f1_score
+    }
+  ];
+
+  const formattedOptimizedResults = Object.keys(optimizedResults).map(method => ({
+    method,
+    accuracy: optimizedResults[method].accuracy,
+    recall: optimizedResults[method].recall,
+    precision: optimizedResults[method].precision,
+    f1: optimizedResults[method].f1_score
+  }));
+
+  return {
+    initialResults: formattedInitialResults,
+    optimizedResults: formattedOptimizedResults
+  };
+};
+
+const FileUpload = ({ onFileSelect, setResults }) => (
   <div className="flex flex-col items-center gap-4 p-6 border-2 border-dashed rounded-lg border-gray-300 bg-gray-50">
     <div className="text-gray-400">
       <UploadIcon />
@@ -36,7 +111,7 @@ const FileUpload = ({ onFileSelect }) => (
     <input
       type="file"
       accept=".csv"
-      onChange={onFileSelect}
+      onChange={onFileSelect} // Utilisation de la bonne prop
       className="hidden"
       id="csv-upload"
     />
@@ -131,73 +206,59 @@ const ResultsCharts = ({ results }) => {
     </div>
   );
 };
-
 const App = () => {
   const [results, setResults] = useState(null);
-  const [fileName, setFileName] = useState("");
 
-  const handleFileSelect = (event) => {
+  const handleUpload = async (event) => {
     const file = event.target.files[0];
-    if (file) {
-      setFileName(file.name);
-      // Simuler le traitement du fichier
-      setTimeout(() => {
-        setResults(mockResults);
-      }, 1000);
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('http://localhost:5000/optimazation-methods-using-knn-classifier', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de l\'envoi du fichier');
+      }
+
+      const data = await response.json();
+      const transformedData = transformResults(data);
+      setResults(transformedData);
+    } catch (error) {
+      console.error('Erreur API:', error);
     }
-  };
-
-  const handleDownload = () => {
-    if (!results) return;
-
-    const headers = ['method,accuracy,recall,precision,f1'];
-    const csvContent = results.map(row => 
-      `${row.method},${row.accuracy},${row.recall},${row.precision},${row.f1}`
-    );
-    
-    const content = [...headers, ...csvContent].join('\n');
-    const blob = new Blob([content], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'resultats_analyse.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
         <header className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            Comparaison des Algorithmes d'Optimisation
-          </h1>
-          <p className="text-gray-600">
-            Importez un fichier CSV pour analyser les résultats avec différentes méthodes d'optimisation
-          </p>
+          <h1 className="text-3xl font-bold mb-2">Comparaison des Algorithmes d'Optimisation</h1>
+          <p className="text-gray-600">Importez un fichier CSV pour analyser les résultats avec différentes méthodes d'optimisation</p>
         </header>
 
         <div className="max-w-xl mx-auto mb-8">
-          <FileUpload onFileSelect={handleFileSelect} />
+        <FileUpload setResults={setResults} onFileSelect={handleUpload} />
         </div>
 
         {results && (
           <div className="space-y-8">
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Résultats de l'analyse</h2>
-                <button
-                  onClick={handleDownload}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                >
-                  <DownloadIcon />
-                  Télécharger les résultats
-                </button>
-              </div>
-              <ResultsTable results={results} />
+              <h2 className="text-xl font-semibold mb-4">Performances avant optimisation</h2>
+              <ResultsTable results={results.initialResults} />
             </div>
 
-            <ResultsCharts results={results} />
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold mb-4">Performances après optimisation</h2>
+              <ResultsTable results={results.optimizedResults} />
+            </div>
+
+            <ResultsCharts results={results.optimizedResults} />
           </div>
         )}
       </div>

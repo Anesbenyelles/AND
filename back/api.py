@@ -12,9 +12,14 @@ from sklearn.neighbors import KNeighborsClassifier
 from mealpy import SCA, PSO, GA, GWO, WOA
 from mealpy.utils.space import FloatVar
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+
 app = Flask(__name__)
+CORS(app)  # Cela autorise toutes les origines
+
 @app.route("/optimazation-methods-using-knn-classifier", methods=['POST'])
 def optimazation_methods_using_knn_classifier():
+    print("Optimazation methods using knn classifier")
     # Check if a file is uploaded
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -104,6 +109,10 @@ def optimazation_methods_using_knn_classifier():
         }
 
     # Return results as JSON
+    print("results_after_optimization") 
+    print(results_after_optimization)
+    print("initial_results")
+    print(initial_results)
     return jsonify({
         "Performances avant optimisation": initial_results,
         "Performances après optimisation": results_after_optimization
