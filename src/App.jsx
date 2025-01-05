@@ -103,27 +103,47 @@ const transformResults = (data) => {
   };
 };
 
-const FileUpload = ({ onFileSelect, setResults }) => (
-  <div className="flex flex-col items-center gap-4 p-6 border-2 border-dashed rounded-lg border-gray-300 bg-gray-50">
-    <div className="text-gray-400">
-      <UploadIcon />
+const FileUpload = ({ onFileSelect, setResults }) => {
+  const [classifier, setClassifier] = useState("knn"); // Default to KNN
+
+  const handleClassifierChange = (event) => {
+    setClassifier(event.target.value);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4 p-6 border-2 border-dashed rounded-lg border-gray-300 bg-gray-50">
+      <div className="text-gray-400">
+        <UploadIcon />
+      </div>
+      <input
+        type="file"
+        accept=".csv"
+        onChange={(event) => onFileSelect(event, classifier)} // Pass the selected classifier
+        className="hidden"
+        id="csv-upload"
+      />
+      <label
+        htmlFor="csv-upload"
+        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 cursor-pointer"
+      >
+        Choisir un fichier CSV
+      </label>
+      <p className="text-sm text-gray-500">Format accepté : CSV</p>
+      <div className="mt-4">
+        <label htmlFor="classifier-select" className="text-sm text-gray-600">Choisir un classifieur:</label>
+        <select
+          id="classifier-select"
+          value={classifier}
+          onChange={handleClassifierChange}
+          className="ml-2 p-2 border border-gray-300 rounded-md"
+        >
+          <option value="knn">KNN</option>
+          <option value="mlp">MLP</option>
+        </select>
+      </div>
     </div>
-    <input
-      type="file"
-      accept=".csv"
-      onChange={onFileSelect} // Utilisation de la bonne prop
-      className="hidden"
-      id="csv-upload"
-    />
-    <label
-      htmlFor="csv-upload"
-      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 cursor-pointer"
-    >
-      Choisir un fichier CSV
-    </label>
-    <p className="text-sm text-gray-500">Format accepté : CSV</p>
-  </div>
-);
+  );
+};
 
 const ResultsTable = ({ results }) => (
   <div className="overflow-x-auto">
@@ -209,23 +229,27 @@ const ResultsCharts = ({ results }) => {
 const App = () => {
   const [results, setResults] = useState(null);
 
-  const handleUpload = async (event) => {
+  const handleUpload = async (event, classifier) => {
     const file = event.target.files[0];
     if (!file) return;
-
+  
     const formData = new FormData();
     formData.append('file', file);
-
+  
     try {
-      const response = await fetch('http://localhost:5000/optimazation-methods-using-knn-classifier', {
+      const endpoint = classifier === "knn" 
+        ? 'http://localhost:5000/optimazation-methods-using-knn-classifier' 
+        : 'http://localhost:5000/optimazation-methods-using-mlp-classifier';
+  
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
       });
-
+  
       if (!response.ok) {
         throw new Error('Erreur lors de l\'envoi du fichier');
       }
-
+  
       const data = await response.json();
       const transformedData = transformResults(data);
       setResults(transformedData);
@@ -234,6 +258,7 @@ const App = () => {
     }
   };
 
+  
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
@@ -243,7 +268,7 @@ const App = () => {
         </header>
 
         <div className="max-w-xl mx-auto mb-8">
-        <FileUpload setResults={setResults} onFileSelect={handleUpload} />
+          <FileUpload setResults={setResults} onFileSelect={handleUpload} />
         </div>
 
         {results && (
